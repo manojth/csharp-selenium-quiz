@@ -770,7 +770,7 @@
   </div>
 
   <div id="questionCard" class="question-card" style="display:none"></div>
-  <button id="nextBtn" class="next-btn" onclick="nextQuestion()">Next Question →</button>
+
 
   <div id="scoreScreen" class="score-screen"></div>
 </div>
@@ -1012,6 +1012,7 @@ function loadQuestion() {
     ${codeBlock}
     <div class="options">${optHtml}</div>
     <div class="explanation" id="explanation"></div>
+    <button id="nextBtn" class="next-btn" onclick="nextQuestion()">Next Question →</button>
   `;
   document.getElementById('questionCard').style.display = 'block';
   document.getElementById('nextBtn').classList.remove('show');
@@ -1047,10 +1048,10 @@ function selectAnswer(idx) {
   nextBtn.textContent = currentIndex < questions[currentLevel].length - 1 ? 'Next Question →' : 'See Results →';
   nextBtn.classList.add('show');
 
-  // Scroll explanation into view smoothly
+  // Scroll next button into view
   setTimeout(() => {
-    exp.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, 100);
+    nextBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, 150);
 }
 
 function nextQuestion() {
