@@ -1015,6 +1015,12 @@ function loadQuestion() {
   `;
   document.getElementById('questionCard').style.display = 'block';
   document.getElementById('nextBtn').classList.remove('show');
+
+  // Scroll to top of question on new question load
+  setTimeout(() => {
+    document.getElementById('questionCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 50);
+  document.getElementById('nextBtn').classList.remove('show');
 }
 
 function selectAnswer(idx) {
@@ -1040,6 +1046,11 @@ function selectAnswer(idx) {
   const nextBtn = document.getElementById('nextBtn');
   nextBtn.textContent = currentIndex < questions[currentLevel].length - 1 ? 'Next Question →' : 'See Results →';
   nextBtn.classList.add('show');
+
+  // Scroll explanation into view smoothly
+  setTimeout(() => {
+    exp.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, 100);
 }
 
 function nextQuestion() {
