@@ -807,7 +807,15 @@ async function handleLogin() {
   btn.disabled = false;
   btn.textContent = 'Sign In';
 
-  if (error) { showError(errEl, error.message); return; }
+  if (error) {
+    // Give a friendly message for unverified email
+    if (error.message.toLowerCase().includes('email not confirmed')) {
+      showError(errEl, '📧 Please verify your email first. Check your inbox for the confirmation link.');
+    } else {
+      showError(errEl, error.message);
+    }
+    return;
+  }
   // session listener will handle redirect
 }
 
@@ -828,18 +836,55 @@ async function handleSignup() {
   btn.disabled = true;
   btn.innerHTML = '<span class="loading-spinner"></span>Creating account...';
 
-  const { error } = await sb.auth.signUp({ email, password });
+  const { data, error } = await sb.auth.signUp({ email, password });
   btn.disabled = false;
   btn.textContent = 'Create Account';
 
   if (error) { showError(errEl, error.message); return; }
-  sucEl.textContent = '✅ Account created! You can now sign in.';
-  sucEl.style.display = 'block';
-  setTimeout(() => switchTab('login'), 2000);
+
+  // Check if email confirmation is required
+  if (data?.user?.identities?.length === 0) {
+    showError(errEl, 'An account with this email already exists.');
+    return;
+  }
+
+  if (data?.user?.confirmed_at) {
+    // Email confirmation is disabled — log straight in
+    sucEl.textContent = '✅ Account created! You can now sign in.';
+    sucEl.style.display = 'block';
+    setTimeout(() => switchTab('login'), 2000);
+  } else {
+    // Email confirmation is enabled — show verification message
+    sucEl.innerHTML = '📧 <strong>Verification email sent!</strong><br>Please check your inbox and click the confirmation link before signing in.';
+    sucEl.style.display = 'block';
+    // Clear the form
+    document.getElementById('signupEmail').value = '';
+    document.getElementById('signupPassword').value = '';
+    document.getElementById('signupConfirm').value = '';
+  }
 }
 
 async function handleLogout() {
-  await sb.auth.signOut();
+  try {
+    const { error } = await sb.auth.signOut();
+    if (error) {
+      console.error('Sign out error:', error.message);
+    }
+    // Force UI reset regardless of error
+    document.getElementById('authScreen').style.display = 'block';
+    document.getElementById('appScreen').style.display = 'none';
+    resetQuizUI();
+    // Clear login fields
+    document.getElementById('loginEmail').value = '';
+    document.getElementById('loginPassword').value = '';
+    document.getElementById('loginError').style.display = 'none';
+    switchTab('login');
+  } catch (e) {
+    console.error('Logout failed:', e);
+    // Force redirect to auth screen anyway
+    document.getElementById('authScreen').style.display = 'block';
+    document.getElementById('appScreen').style.display = 'none';
+  }
 }
 
 function showError(el, msg) {
@@ -927,51 +972,13 @@ async function saveResult(level, score, total) {
 }
 
 // ── QUIZ LOGIC ──
-const questions = {
-  basic: [
-    { q: "Which NuGet package do you install to use Selenium WebDriver in a C# project?", code: null, options: ["Selenium.WebDriver", "Selenium.Driver.CSharp", "OpenQA.Selenium.Core", "WebDriver.NuGet"], answer: 0, explanation: "<strong>Selenium.WebDriver</strong> is the correct NuGet package. It provides the core WebDriver API under the <code>OpenQA.Selenium</code> namespace. You also typically install a browser-specific driver package like <code>Selenium.WebDriver.ChromeDriver</code>." },
-    { q: "What is the correct way to instantiate a ChromeDriver in C#?", code: "IWebDriver driver = new ChromeDriver();", options: ["This is correct", "IWebDriver driver = ChromeDriver.Create();", "WebDriver driver = new ChromeDriver();", "var driver = Selenium.Chrome();"], answer: 0, explanation: "Using the <strong>IWebDriver</strong> interface to reference a <strong>ChromeDriver</strong> instance is the standard practice. It allows you to swap browser implementations easily." },
-    { q: "Which method navigates the browser to a URL in Selenium C#?", code: null, options: ["driver.Navigate().GoToUrl(\"https://example.com\");", "driver.Open(\"https://example.com\");", "driver.Url = \"https://example.com\";", "Both A and C are valid"], answer: 3, explanation: "Both <strong>driver.Navigate().GoToUrl(url)</strong> and <strong>driver.Url = url</strong> are valid. <code>Navigate().GoToUrl()</code> also provides Back/Forward/Refresh methods." },
-    { q: "Which locator strategy finds an element by its HTML id attribute?", code: "driver.FindElement(???);", options: ["By.Id(\"elementId\")", "By.Attribute(\"id\", \"elementId\")", "By.Tag(\"id\", \"elementId\")", "By.Name(\"elementId\")"], answer: 0, explanation: "<strong>By.Id()</strong> finds elements by their HTML <code>id</code> attribute. It is the fastest and most reliable locator since IDs should be unique per page." },
-    { q: "What does driver.Quit() do compared to driver.Close()?", code: null, options: ["Both do the same thing", "Close() closes one tab; Quit() closes the browser and ends the WebDriver session", "Quit() closes one tab; Close() ends the session", "Quit() only works on Firefox"], answer: 1, explanation: "<strong>Close()</strong> closes the current window/tab only. <strong>Quit()</strong> closes all windows AND terminates the WebDriver session. Always call <code>Quit()</code> in teardown." },
-    { q: "Which assertion method from NUnit checks that a condition is true?", code: "Assert.???(driver.Title.Contains(\"Home\"));", options: ["Assert.That()", "Assert.IsTrue()", "Assert.Equals()", "Both A and B are valid"], answer: 3, explanation: "Both <strong>Assert.IsTrue(condition)</strong> and <strong>Assert.That(condition, Is.True)</strong> are valid. <code>Assert.That()</code> is the modern constraint-based model with more descriptive failure messages." },
-    { q: "How do you click a button element in Selenium C#?", code: "IWebElement btn = driver.FindElement(By.Id(\"submit\"));", options: ["btn.Click();", "btn.Submit();", "driver.Click(btn);", "btn.Perform(ClickAction);"], answer: 0, explanation: "<strong>element.Click()</strong> is the Selenium method to simulate a mouse click. It works on any clickable element." },
-    { q: "What is the correct way to send text input to a text field?", code: "IWebElement input = driver.FindElement(By.Name(\"username\"));", options: ["input.Type(\"myUser\");", "input.SendKeys(\"myUser\");", "input.Value = \"myUser\";", "driver.SendInput(input, \"myUser\");"], answer: 1, explanation: "<strong>SendKeys()</strong> simulates actual keyboard input and supports special keys via the <code>Keys</code> class (e.g., <code>Keys.Enter</code>)." },
-    { q: "Which attribute of a test class is required in NUnit for a test class?", code: null, options: ["[TestFixture] is required", "[TestClass] is required", "[TestFixture] is optional — NUnit auto-discovers public classes", "You use [TestSuite]"], answer: 2, explanation: "In NUnit 3+, <strong>[TestFixture] is optional</strong> for non-generic, non-abstract classes. NUnit auto-discovers public classes containing <code>[Test]</code> methods." },
-    { q: "What does driver.FindElements() return when no elements are found?", code: null, options: ["null", "Throws NoSuchElementException", "An empty IReadOnlyCollection<IWebElement>", "An empty List<IWebElement>"], answer: 2, explanation: "<strong>FindElements()</strong> returns an empty <strong>IReadOnlyCollection</strong> — it never throws. This is the key difference from <code>FindElement()</code>, which throws <code>NoSuchElementException</code>." }
-  ],
-  intermediate: [
-    { q: "What is the purpose of WebDriverWait in Selenium C#?", code: "WebDriverWait wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));", options: ["It pauses test execution for a fixed number of seconds", "It repeatedly checks a condition until it's true or a timeout is reached", "It waits for page load to complete", "It sets the browser's implicit wait time"], answer: 1, explanation: "<strong>WebDriverWait</strong> polls the browser repeatedly (every 500ms by default) until an <code>ExpectedCondition</code> is met or timeout expires. More reliable than <code>Thread.Sleep()</code>." },
-    { q: "What is the Page Object Model (POM) pattern?", code: null, options: ["Each web page has a corresponding C# class encapsulating its elements and actions", "A pattern for loading pages faster", "A NuGet library for page automation", "A method for organizing test assertions"], answer: 0, explanation: "The <strong>Page Object Model</strong> maps each web page to a C# class that encapsulates locators and page-specific methods, separating test logic from page structure." },
-    { q: "Which ExpectedCondition should you use to wait for an element to be clickable?", code: "wait.Until(ExpectedConditions.???);", options: ["ElementExists(By.Id(\"btn\"))", "ElementIsVisible(By.Id(\"btn\"))", "ElementToBeClickable(By.Id(\"btn\"))", "ElementToBeSelected(By.Id(\"btn\"))"], answer: 2, explanation: "<strong>ElementToBeClickable()</strong> waits until an element is both visible AND enabled. <code>ElementIsVisible()</code> only checks visibility — a visible element can still be disabled." },
-    { q: "How do you handle a dropdown (select element) in Selenium C#?", code: "IWebElement dropdown = driver.FindElement(By.Id(\"country\"));", options: ["dropdown.Click(); then find and click the option", "new SelectElement(dropdown).SelectByText(\"USA\");", "dropdown.SendKeys(\"USA\");", "Both B and C work"], answer: 3, explanation: "Both work: <code>SelectElement</code> provides <code>SelectByText()</code>, <code>SelectByValue()</code>, and <code>SelectByIndex()</code>. <code>SendKeys()</code> can also select by text. <code>SelectElement</code> from <code>OpenQA.Selenium.Support.UI</code> is preferred." },
-    { q: "What is the difference between implicit and explicit waits?", code: null, options: ["Implicit waits apply globally to all FindElement calls; explicit waits apply to specific conditions", "Explicit waits are faster than implicit waits", "Implicit waits are set per element; explicit waits are global", "There is no practical difference"], answer: 0, explanation: "<strong>Implicit wait</strong> is a global setting polling on every FindElement. <strong>Explicit wait</strong> targets a specific condition. Mixing both is discouraged as it causes unpredictable timeouts." },
-    { q: "In NUnit, which attribute marks a method that runs before each test?", code: null, options: ["[TestInitialize]", "[SetUp]", "[BeforeEach]", "[ClassSetUp]"], answer: 1, explanation: "In NUnit, <strong>[SetUp]</strong> marks a method that runs before each <code>[Test]</code>. MSTest uses <code>[TestInitialize]</code> and xUnit uses the constructor." },
-    { q: "How do you switch to an iframe in Selenium C#?", code: null, options: ["driver.SwitchTo().Frame(\"frameName\");", "driver.SwitchTo().IFrame(By.Name(\"frameName\"));", "driver.Frame(\"frameName\");", "driver.Navigate().Frame(\"frameName\");"], answer: 0, explanation: "<strong>driver.SwitchTo().Frame()</strong> accepts a name/id (string), index (int), or IWebElement. Call <code>driver.SwitchTo().DefaultContent()</code> to return to main context." },
-    { q: "What does this code do?", code: 'IJavaScriptExecutor js = (IJavaScriptExecutor)driver;\njs.ExecuteScript("arguments[0].click();", element);', options: ["It throws a cast exception", "It clicks the element using JavaScript, bypassing Selenium's click", "It finds an element by JavaScript selector", "It scrolls to the element"], answer: 1, explanation: "Casting to <strong>IJavaScriptExecutor</strong> and using <code>arguments[0].click()</code> performs a JavaScript-level click — useful when elements are overlapped or Selenium's native click fails." },
-    { q: "In xUnit, how do you share a single browser instance across all tests in a class?", code: null, options: ["Mark the driver as static", "Implement IClassFixture<T> and inject via constructor", "Use [OneTimeSetUp] attribute", "xUnit doesn't support shared instances"], answer: 1, explanation: "xUnit uses <strong>IClassFixture&lt;T&gt;</strong> for class-level shared context. The fixture is created once and disposed after all tests in the class run." },
-    { q: "What is the correct way to take a screenshot in Selenium C#?", code: null, options: ["driver.CaptureScreen(\"screenshot.png\");", "Screenshot ss = ((ITakesScreenshot)driver).GetScreenshot(); ss.SaveAsFile(\"screenshot.png\");", "driver.SaveScreenshot(\"screenshot.png\");", "WebDriver.Screenshot(driver, \"screenshot.png\");"], answer: 1, explanation: "Casting to <strong>ITakesScreenshot</strong> and calling <code>GetScreenshot()</code> is the correct API. The <code>Screenshot</code> object's <code>SaveAsFile()</code> saves it to disk." }
-  ],
-  advanced: [
-    { q: "How do you configure parallel test execution in NUnit at the assembly level?", code: null, options: ["[assembly: Parallelizable(ParallelScope.All)]", "[assembly: Parallel(true)]", "[assembly: RunInParallel]", "[assembly: TestParallel(ParallelScope.Fixtures)]"], answer: 0, explanation: "<strong>[assembly: Parallelizable(ParallelScope.All)]</strong> enables parallel execution. <code>ParallelScope.All</code> runs fixtures and tests in parallel. Each parallel test needs its own WebDriver instance." },
-    { q: "What pattern should you use to manage WebDriver instances safely in parallel NUnit tests?", code: null, options: ["Static IWebDriver field with lock() synchronization", "ThreadLocal<IWebDriver> to store one driver per thread", "A single shared driver with a mutex", "Multiple drivers in a List<IWebDriver>"], answer: 1, explanation: "<strong>ThreadLocal&lt;IWebDriver&gt;</strong> gives each thread its own isolated driver instance, preventing race conditions. Initialize in <code>[SetUp]</code> and dispose in <code>[TearDown]</code>." },
-    { q: "What is the purpose of Selenium Grid and how does it relate to RemoteWebDriver?", code: null, options: ["Selenium Grid is a UI for test results; RemoteWebDriver connects to it", "Selenium Grid distributes tests across machines/browsers; RemoteWebDriver connects tests to Grid nodes", "Selenium Grid is a C# library; RemoteWebDriver is the Java equivalent", "They are the same thing"], answer: 1, explanation: "<strong>Selenium Grid</strong> distributes tests across multiple machines. <strong>RemoteWebDriver</strong> connects to the Grid hub: <code>new RemoteWebDriver(new Uri(\"http://hub:4444\"), options.ToCapabilities())</code>." },
-    { q: "What does this advanced wait pattern accomplish?", code: "wait.Until(driver => {\n  var elements = driver.FindElements(By.CssSelector(\".item\"));\n  return elements.Count > 5 ? elements : null;\n});", options: ["Throws an exception — Until() doesn't support this return type", "Waits until more than 5 .item elements exist, then returns them", "Clicks the first 5 elements found", "Filters elements by count"], answer: 1, explanation: "<strong>WebDriverWait.Until()</strong> accepts a <code>Func&lt;IWebDriver, T&gt;</code> where returning <code>null</code> continues polling. This waits atomically until the count condition is satisfied." },
-    { q: "How do you implement Fluent Wait in C# Selenium for custom polling?", code: null, options: ["WebDriverWait wait = new WebDriverWait(driver, timeout) { PollingInterval = interval };", "new FluentWait(driver).WithTimeout(10).Polling(500);", "DefaultWait<IWebDriver> wait = new DefaultWait<IWebDriver>(driver); wait.Timeout = ...; wait.PollingInterval = ...;", "Both A and C are valid"], answer: 3, explanation: "Both work: <code>WebDriverWait</code> inherits from <code>DefaultWait&lt;IWebDriver&gt;</code>. You can set <code>PollingInterval</code> on either and use <code>.IgnoreExceptionTypes()</code> for specific exceptions." },
-    { q: "In a CI/CD pipeline, how do you run Chrome in headless mode?", code: null, options: ["Set driver.Headless = true", "ChromeOptions options = new ChromeOptions(); options.AddArgument(\"--headless=new\"); new ChromeDriver(options);", "Use FirefoxDriver instead", "Headless mode is automatic in CI"], answer: 1, explanation: "<strong>options.AddArgument(\"--headless=new\")</strong> enables Chrome's modern headless mode. Also add <code>--no-sandbox</code> and <code>--disable-dev-shm-usage</code> for Docker/Linux CI environments." },
-    { q: "What is a common strategy for test data isolation in parallel Selenium tests?", code: null, options: ["Use a single shared database and clean it after all tests", "Generate unique test data per test using GUIDs/timestamps and clean up in TearDown", "Disable parallel execution when using a database", "Use the same credentials for all parallel tests"], answer: 1, explanation: "Generating <strong>unique test data per test</strong> (e.g., <code>$\"user_{Guid.NewGuid():N}\"</code>) prevents parallel conflicts. Each test owns and cleans up its own data." },
-    { q: "What does this code implement?", code: "public class RetryAttribute : Attribute, ITestAction {\n  private int _retryCount;\n  public RetryAttribute(int count) => _retryCount = count;\n  public void BeforeTest(ITest test) {}\n  public void AfterTest(ITest test) {\n    // retry logic on failure\n  }\n}", options: ["A custom NUnit attribute for retrying flaky tests automatically", "A Selenium wait mechanism", "A performance benchmark attribute", "A test ordering attribute"], answer: 0, explanation: "This implements a <strong>custom NUnit retry attribute</strong> using <code>ITestAction</code>. NUnit 3 also has a built-in <code>[Retry(n)]</code> attribute that re-runs failed tests up to n times." },
-    { q: "How do you intercept network requests in Selenium C# for API mocking?", code: null, options: ["driver.InterceptRequest(url, response);", "Use Selenium 4's CDP via driver.ExecuteCdpCommand()", "Network interception is not supported in Selenium", "Use a JavaScript XMLHttpRequest override"], answer: 1, explanation: "Selenium 4 exposes <strong>Chrome DevTools Protocol (CDP)</strong> via <code>IDevTools</code> and <code>DevToolsSession</code>. You can intercept and mock network requests with the <code>Fetch</code> domain." },
-    { q: "What is the recommended approach for Extent Reports in a parallel Selenium framework?", code: null, options: ["Create a new ExtentReports instance per test", "Use a singleton ExtentReports with ThreadLocal<ExtentTest> nodes, flushing in global teardown", "Only use Console.WriteLine for logging", "Use ExtentReports only with TestNG, not NUnit"], answer: 1, explanation: "A <strong>singleton ExtentReports</strong> with <strong>ThreadLocal&lt;ExtentTest&gt;</strong> nodes is the correct pattern. Initialize once in <code>[OneTimeSetUp]</code>, log per test, and <code>extent.Flush()</code> in <code>[OneTimeTearDown]</code>." }
-  ]
-};
-
+let questions = {};         // loaded from Supabase
 let currentLevel = null;
 let currentIndex = 0;
 let score = 0;
 let answered = false;
 
-function selectLevel(level) {
+async function selectLevel(level) {
   document.querySelectorAll('.level-btn').forEach(b => b.classList.remove('active'));
   document.querySelector(`.level-btn.${level}`).classList.add('active');
   currentLevel = level;
@@ -983,7 +990,40 @@ function selectLevel(level) {
   document.getElementById('scoreScreen').classList.remove('show');
   document.getElementById('progressInfo').style.display = 'flex';
   document.getElementById('progressWrap').style.display = 'block';
-  document.getElementById('nextBtn').classList.remove('show');
+  document.getElementById('questionCard').style.display = 'none';
+
+  // Show loading state
+  document.getElementById('questionCard').innerHTML = `
+    <div style="text-align:center; padding:2rem; color:var(--muted); font-family:'JetBrains Mono',monospace; font-size:0.85rem;">
+      <span class="loading-spinner"></span> Loading questions...
+    </div>`;
+  document.getElementById('questionCard').style.display = 'block';
+
+  // Fetch questions from Supabase if not already loaded for this level
+  if (!questions[level] || questions[level].length === 0) {
+    const { data, error } = await sb
+      .from('questions')
+      .select('*')
+      .eq('level', level)
+      .order('created_at', { ascending: true });
+
+    if (error || !data || data.length === 0) {
+      document.getElementById('questionCard').innerHTML = `
+        <div style="text-align:center; padding:2rem; color:var(--red); font-family:'JetBrains Mono',monospace; font-size:0.85rem;">
+          ❌ Failed to load questions. Please try again.
+        </div>`;
+      return;
+    }
+
+    // Map Supabase columns to the shape loadQuestion() expects
+    questions[level] = data.map(row => ({
+      q: row.question_text,
+      code: row.code_snippet || null,
+      options: [row.option_a, row.option_b, row.option_c, row.option_d],
+      answer: row.correct_answer,
+      explanation: row.explanation
+    }));
+  }
 
   loadQuestion();
 }
@@ -1021,14 +1061,13 @@ function loadQuestion() {
   setTimeout(() => {
     document.getElementById('questionCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, 50);
-  document.getElementById('nextBtn').classList.remove('show');
 }
 
 function selectAnswer(idx) {
   if (answered) return;
   answered = true;
 
-  const q = questions[currentLevel][currentIndex];
+  const q = questions[currentLevel][currentIndex]; // q.answer, q.explanation, q.options
   const opts = document.querySelectorAll('.option-btn');
   opts.forEach(b => b.disabled = true);
 
