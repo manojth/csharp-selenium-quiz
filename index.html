@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C# Selenium Testing Quiz</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap');
+
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #1e2d45;
+    --accent: #00d4ff;
+    --accent2: #7c3aed;
+    --green: #10b981;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --text: #e2e8f0;
+    --muted: #64748b;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem 1rem;
+    background-image: 
+      radial-gradient(ellipse at 20% 10%, rgba(0,212,255,0.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 90%, rgba(124,58,237,0.08) 0%, transparent 50%);
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+  }
+
+  header h1 {
+    font-size: clamp(1.8rem, 4vw, 2.8rem);
+    font-weight: 800;
+    letter-spacing: -1px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  header p {
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    margin-top: 0.4rem;
+  }
+
+  .quiz-container {
+    width: 100%;
+    max-width: 780px;
+  }
+
+  /* Level selector */
+  .level-selector {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .level-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 1.2rem 1rem;
+    border-radius: 12px;
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    transition: all 0.2s;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .level-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .level-btn.basic::before { background: linear-gradient(135deg, rgba(16,185,129,0.15), transparent); }
+  .level-btn.intermediate::before { background: linear-gradient(135deg, rgba(245,158,11,0.15), transparent); }
+  .level-btn.advanced::before { background: linear-gradient(135deg, rgba(239,68,68,0.15), transparent); }
+
+  .level-btn:hover::before, .level-btn.active::before { opacity: 1; }
+
+  .level-btn.basic { border-color: rgba(16,185,129,0.3); }
+  .level-btn.intermediate { border-color: rgba(245,158,11,0.3); }
+  .level-btn.advanced { border-color: rgba(239,68,68,0.3); }
+
+  .level-btn.active.basic { border-color: var(--green); box-shadow: 0 0 20px rgba(16,185,129,0.2); }
+  .level-btn.active.intermediate { border-color: var(--yellow); box-shadow: 0 0 20px rgba(245,158,11,0.2); }
+  .level-btn.active.advanced { border-color: var(--red); box-shadow: 0 0 20px rgba(239,68,68,0.2); }
+
+  .level-icon { font-size: 1.5rem; display: block; margin-bottom: 0.3rem; }
+  .level-label { font-size: 0.75rem; opacity: 0.6; font-weight: 400; font-family: 'JetBrains Mono', monospace; }
+
+  /* Progress */
+  .progress-bar-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    height: 6px;
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 8px;
+    transition: width 0.4s ease;
+    width: 0%;
+  }
+
+  .progress-info {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+  }
+
+  /* Question card */
+  .question-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 1rem;
+    animation: slideIn 0.3s ease;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .question-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 0.75rem;
+  }
+
+  .question-text {
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: 1.5;
+    margin-bottom: 1.5rem;
+  }
+
+  .code-block {
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    color: #a9c3e3;
+    margin-bottom: 1.5rem;
+    overflow-x: auto;
+    line-height: 1.7;
+    white-space: pre;
+  }
+
+  .options { display: flex; flex-direction: column; gap: 0.65rem; }
+
+  .option-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    padding: 0.9rem 1.2rem;
+    text-align: left;
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.95rem;
+    transition: all 0.18s;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .option-btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: rgba(0,212,255,0.05);
+    transform: translateX(4px);
+  }
+
+  .option-btn .opt-label {
+    background: var(--border);
+    color: var(--muted);
+    border-radius: 6px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    transition: all 0.18s;
+  }
+
+  .option-btn.correct {
+    border-color: var(--green);
+    background: rgba(16,185,129,0.1);
+  }
+  .option-btn.correct .opt-label { background: var(--green); color: #000; }
+
+  .option-btn.wrong {
+    border-color: var(--red);
+    background: rgba(239,68,68,0.08);
+  }
+  .option-btn.wrong .opt-label { background: var(--red); color: #fff; }
+
+  .option-btn:disabled { cursor: default; }
+
+  /* Explanation */
+  .explanation {
+    margin-top: 1.2rem;
+    padding: 1.1rem 1.3rem;
+    border-radius: 10px;
+    font-size: 0.92rem;
+    line-height: 1.6;
+    animation: fadeIn 0.3s ease;
+    display: none;
+  }
+
+  .explanation.show { display: block; }
+
+  .explanation.correct-exp {
+    background: rgba(16,185,129,0.08);
+    border: 1px solid rgba(16,185,129,0.3);
+  }
+
+  .explanation.wrong-exp {
+    background: rgba(239,68,68,0.06);
+    border: 1px solid rgba(239,68,68,0.2);
+  }
+
+  .explanation strong { color: var(--accent); }
+
+  @keyframes fadeIn {
+    from { opacity: 0; } to { opacity: 1; }
+  }
+
+  /* Next btn */
+  .next-btn {
+    width: 100%;
+    margin-top: 1rem;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 10px;
+    color: #fff;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    padding: 0.9rem;
+    cursor: pointer;
+    display: none;
+    transition: opacity 0.2s, transform 0.15s;
+  }
+
+  .next-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+  .next-btn.show { display: block; animation: fadeIn 0.3s ease; }
+
+  /* Score screen */
+  .score-screen {
+    display: none;
+    text-align: center;
+    padding: 3rem 2rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    animation: slideIn 0.4s ease;
+  }
+
+  .score-screen.show { display: block; }
+
+  .score-number {
+    font-size: 5rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1;
+  }
+
+  .score-label { color: var(--muted); font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; margin-top: 0.5rem; }
+  .score-msg { font-size: 1.2rem; font-weight: 700; margin: 1.5rem 0 0.5rem; }
+  .score-sub { color: var(--muted); font-size: 0.9rem; }
+
+  .restart-btn {
+    margin-top: 2rem;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+    padding: 0.8rem 2rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .restart-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .start-screen {
+    text-align: center;
+    padding: 2rem;
+  }
+
+  .start-screen p {
+    color: var(--muted);
+    margin-bottom: 1rem;
+    line-height: 1.7;
+    font-size: 0.95rem;
+  }
+
+  .badge {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 20px;
+    margin: 0.2rem;
+  }
+  .badge.b { background: rgba(16,185,129,0.15); color: var(--green); border: 1px solid rgba(16,185,129,0.3); }
+  .badge.i { background: rgba(245,158,11,0.15); color: var(--yellow); border: 1px solid rgba(245,158,11,0.3); }
+  .badge.a { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>C# Selenium Quiz</h1>
+  <p>// testing frameworks &amp; automation mastery</p>
+</header>
+
+<div class="quiz-container">
+
+  <div class="level-selector">
+    <button class="level-btn basic" onclick="selectLevel('basic')">
+      <span class="level-icon">🟢</span>
+      Basic
+      <div class="level-label">Fundamentals</div>
+    </button>
+    <button class="level-btn intermediate" onclick="selectLevel('intermediate')">
+      <span class="level-icon">🟡</span>
+      Intermediate
+      <div class="level-label">Proficiency</div>
+    </button>
+    <button class="level-btn advanced" onclick="selectLevel('advanced')">
+      <span class="level-icon">🔴</span>
+      Advanced
+      <div class="level-label">Expert Level</div>
+    </button>
+  </div>
+
+  <div id="startScreen" class="start-screen">
+    <p>Select a difficulty level above to begin your C# Selenium testing quiz.<br>Each test contains <strong>10 questions</strong> answered one at a time, with explanations after each answer.</p>
+    <div>
+      <span class="badge b">BASIC — WebDriver setup, locators, basic assertions</span><br>
+      <span class="badge i">INTERMEDIATE — waits, page objects, test frameworks</span><br>
+      <span class="badge a">ADVANCED — parallel execution, CI/CD, custom reporting</span>
+    </div>
+  </div>
+
+  <div id="progressInfo" class="progress-info" style="display:none">
+    <span id="questionCount">Question 1 of 10</span>
+    <span id="scoreTrack">Score: 0</span>
+  </div>
+  <div id="progressWrap" class="progress-bar-wrap" style="display:none">
+    <div id="progressBar" class="progress-bar"></div>
+  </div>
+
+  <div id="questionCard" class="question-card" style="display:none"></div>
+  <button id="nextBtn" class="next-btn" onclick="nextQuestion()">Next Question →</button>
+
+  <div id="scoreScreen" class="score-screen"></div>
+
+</div>
+
+<script>
+const questions = {
+  basic: [
+    {
+      q: "Which NuGet package do you install to use Selenium WebDriver in a C# project?",
+      code: null,
+      options: ["Selenium.WebDriver", "Selenium.Driver.CSharp", "OpenQA.Selenium.Core", "WebDriver.NuGet"],
+      answer: 0,
+      explanation: "<strong>Selenium.WebDriver</strong> is the correct NuGet package. It provides the core WebDriver API under the <code>OpenQA.Selenium</code> namespace. You also typically install a browser-specific driver package like <code>Selenium.WebDriver.ChromeDriver</code>."
+    },
+    {
+      q: "What is the correct way to instantiate a ChromeDriver in C#?",
+      code: `IWebDriver driver = new ChromeDriver();`,
+      options: [
+        "This is correct",
+        "IWebDriver driver = ChromeDriver.Create();",
+        "WebDriver driver = new ChromeDriver();",
+        "var driver = Selenium.Chrome();"
+      ],
+      answer: 0,
+      explanation: "Using the <strong>IWebDriver</strong> interface to reference a <strong>ChromeDriver</strong> instance is the standard practice. It allows you to swap browser implementations easily. The <code>IWebDriver</code> interface is defined in <code>OpenQA.Selenium</code>."
+    },
+    {
+      q: "Which method navigates the browser to a URL in Selenium C#?",
+      code: null,
+      options: [
+        "driver.Navigate().GoToUrl(\"https://example.com\");",
+        "driver.Open(\"https://example.com\");",
+        "driver.Url = \"https://example.com\";",
+        "Both A and C are valid"
+      ],
+      answer: 3,
+      explanation: "Both <strong>driver.Navigate().GoToUrl(url)</strong> and <strong>driver.Url = url</strong> are valid ways to navigate. <code>Navigate().GoToUrl()</code> is more explicit and also provides Back/Forward/Refresh methods. Setting <code>driver.Url</code> directly is a shorthand."
+    },
+    {
+      q: "Which locator strategy finds an element by its HTML id attribute?",
+      code: `driver.FindElement(???);`,
+      options: [
+        "By.Id(\"elementId\")",
+        "By.Attribute(\"id\", \"elementId\")",
+        "By.Tag(\"id\", \"elementId\")",
+        "By.Name(\"elementId\")"
+      ],
+      answer: 0,
+      explanation: "<strong>By.Id()</strong> is the locator strategy for finding elements by their HTML <code>id</code> attribute. It is typically the fastest and most reliable locator since IDs should be unique on a page."
+    },
+    {
+      q: "What does driver.Quit() do compared to driver.Close()?",
+      code: null,
+      options: [
+        "Both do the same thing",
+        "Close() closes one tab; Quit() closes the browser and ends the WebDriver session",
+        "Quit() closes one tab; Close() ends the WebDriver session",
+        "Quit() only works on Firefox"
+      ],
+      answer: 1,
+      explanation: "<strong>Close()</strong> closes the current browser window/tab only. <strong>Quit()</strong> closes all windows AND terminates the WebDriver session, killing the browser process. Always call <code>Quit()</code> in your teardown to avoid orphan browser processes."
+    },
+    {
+      q: "Which assertion method from NUnit checks that a condition is true?",
+      code: `Assert.???(driver.Title.Contains(\"Home\"));`,
+      options: ["Assert.That()", "Assert.IsTrue()", "Assert.Equals()", "Both A and B are valid"],
+      answer: 3,
+      explanation: "Both <strong>Assert.IsTrue(condition)</strong> and <strong>Assert.That(condition, Is.True)</strong> are valid NUnit assertions. <code>Assert.That()</code> is the modern constraint-based model and gives more descriptive failure messages."
+    },
+    {
+      q: "How do you click a button element in Selenium C#?",
+      code: `IWebElement btn = driver.FindElement(By.Id(\"submit\"));`,
+      options: [
+        "btn.Click();",
+        "btn.Submit();",
+        "driver.Click(btn);",
+        "btn.Perform(ClickAction);"
+      ],
+      answer: 0,
+      explanation: "<strong>element.Click()</strong> is the Selenium method to simulate a mouse click. <code>Submit()</code> works on form elements but is less universally applicable. <code>Click()</code> works on any clickable element."
+    },
+    {
+      q: "What is the correct way to send text input to a text field?",
+      code: `IWebElement input = driver.FindElement(By.Name(\"username\"));`,
+      options: [
+        "input.Type(\"myUser\");",
+        "input.SendKeys(\"myUser\");",
+        "input.Value = \"myUser\";",
+        "driver.SendInput(input, \"myUser\");"
+      ],
+      answer: 1,
+      explanation: "<strong>SendKeys()</strong> is the Selenium method for typing text into input fields. It simulates actual keyboard input and supports special keys via the <code>Keys</code> class (e.g., <code>Keys.Enter</code>, <code>Keys.Tab</code>)."
+    },
+    {
+      q: "Which attribute of [TestFixture] class decoration is required in NUnit for a test class?",
+      code: null,
+      options: [
+        "[TestFixture] is required",
+        "[TestClass] is required",
+        "[TestFixture] is optional — NUnit auto-discovers public classes",
+        "Neither; you use [TestSuite]"
+      ],
+      answer: 2,
+      explanation: "In NUnit 3+, <strong>[TestFixture] is optional</strong> for non-generic, non-abstract classes. NUnit auto-discovers any public class containing test methods marked with <code>[Test]</code>. However, it's considered good practice to include it for clarity."
+    },
+    {
+      q: "What does driver.FindElements() return when no elements are found?",
+      code: null,
+      options: [
+        "null",
+        "Throws NoSuchElementException",
+        "An empty IReadOnlyCollection<IWebElement>",
+        "An empty List<IWebElement>"
+      ],
+      answer: 2,
+      explanation: "<strong>FindElements()</strong> (plural) returns an <strong>empty IReadOnlyCollection</strong> when no matching elements exist — it never throws. This is the key difference from <code>FindElement()</code> (singular), which throws <code>NoSuchElementException</code> if no element is found."
+    }
+  ],
+  intermediate: [
+    {
+      q: "What is the purpose of WebDriverWait in Selenium C#?",
+      code: `WebDriverWait wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));`,
+      options: [
+        "It pauses test execution for a fixed number of seconds",
+        "It repeatedly checks a condition until it's true or a timeout is reached",
+        "It waits for page load to complete",
+        "It sets the browser's implicit wait time"
+      ],
+      answer: 1,
+      explanation: "<strong>WebDriverWait</strong> implements an explicit wait that polls the browser repeatedly (every 500ms by default) until a specified <code>ExpectedCondition</code> is met or the timeout expires. This is more efficient and reliable than <code>Thread.Sleep()</code> or implicit waits."
+    },
+    {
+      q: "What is the Page Object Model (POM) pattern in Selenium testing?",
+      code: null,
+      options: [
+        "A design pattern where each web page has a corresponding C# class encapsulating its elements and actions",
+        "A pattern for loading pages faster in Selenium",
+        "A NuGet library for page automation",
+        "A method for organizing test assertions"
+      ],
+      answer: 0,
+      explanation: "The <strong>Page Object Model</strong> is a design pattern where each web page (or page component) maps to a C# class. The class encapsulates locators and page-specific methods, keeping test logic separate from page structure. This improves maintainability and reduces code duplication."
+    },
+    {
+      q: "Which ExpectedCondition should you use to wait for an element to be clickable?",
+      code: `wait.Until(ExpectedConditions.???);`,
+      options: [
+        "ElementExists(By.Id(\"btn\"))",
+        "ElementIsVisible(By.Id(\"btn\"))",
+        "ElementToBeClickable(By.Id(\"btn\"))",
+        "ElementToBeSelected(By.Id(\"btn\"))"
+      ],
+      answer: 2,
+      explanation: "<strong>ElementToBeClickable()</strong> waits until an element is both visible AND enabled. <code>ElementIsVisible()</code> only checks visibility, and an element can be visible but disabled. For buttons and links, <code>ElementToBeClickable()</code> is the correct choice."
+    },
+    {
+      q: "How do you handle a dropdown (select element) in Selenium C#?",
+      code: `IWebElement dropdown = driver.FindElement(By.Id(\"country\"));`,
+      options: [
+        "dropdown.Click(); then find and click the option",
+        "new SelectElement(dropdown).SelectByText(\"USA\");",
+        "dropdown.SendKeys(\"USA\");",
+        "Both B and C work"
+      ],
+      answer: 3,
+      explanation: "For HTML <strong>&lt;select&gt;</strong> elements, both approaches work: <code>SelectElement</code> provides a clean API with <code>SelectByText()</code>, <code>SelectByValue()</code>, and <code>SelectByIndex()</code>. <code>SendKeys()</code> can also select options by text in some drivers. <code>SelectElement</code> from <code>OpenQA.Selenium.Support.UI</code> is preferred."
+    },
+    {
+      q: "What is the difference between implicit and explicit waits?",
+      code: null,
+      options: [
+        "Implicit waits apply globally to all FindElement calls; explicit waits apply to specific conditions",
+        "Explicit waits are faster than implicit waits",
+        "Implicit waits are set per element; explicit waits are global",
+        "There is no practical difference"
+      ],
+      answer: 0,
+      explanation: "<strong>Implicit wait</strong> is a global setting (<code>driver.Manage().Timeouts().ImplicitWait</code>) that tells WebDriver to poll when trying to find an element. <strong>Explicit wait</strong> (WebDriverWait) targets a specific condition. Mixing both is discouraged as it can cause unpredictable timeouts."
+    },
+    {
+      q: "In NUnit, which attribute marks a method that runs before each test method?",
+      code: null,
+      options: ["[TestInitialize]", "[SetUp]", "[BeforeEach]", "[ClassSetUp]"],
+      answer: 1,
+      explanation: "In NUnit, <strong>[SetUp]</strong> marks a method that runs before each <code>[Test]</code> method in the class. The equivalent in MSTest is <code>[TestInitialize]</code> and in xUnit it's the constructor. Use <code>[SetUp]</code> to initialize your WebDriver for each test."
+    },
+    {
+      q: "How do you switch to an iframe in Selenium C#?",
+      code: null,
+      options: [
+        "driver.SwitchTo().Frame(\"frameName\");",
+        "driver.SwitchTo().IFrame(By.Name(\"frameName\"));",
+        "driver.Frame(\"frameName\");",
+        "driver.Navigate().Frame(\"frameName\");"
+      ],
+      answer: 0,
+      explanation: "<strong>driver.SwitchTo().Frame()</strong> is the correct method. It accepts a frame name/id (string), index (int), or an IWebElement. After working inside the frame, call <code>driver.SwitchTo().DefaultContent()</code> to return to the main page context."
+    },
+    {
+      q: "What does this code do?",
+      code: `IJavaScriptExecutor js = (IJavaScriptExecutor)driver;
+js.ExecuteScript("arguments[0].click();", element);`,
+      options: [
+        "It throws a cast exception",
+        "It clicks the element using JavaScript, bypassing Selenium's click",
+        "It finds an element by JavaScript selector",
+        "It scrolls to the element"
+      ],
+      answer: 1,
+      explanation: "Casting driver to <strong>IJavaScriptExecutor</strong> and calling <code>ExecuteScript()</code> with <code>arguments[0].click()</code> performs a JavaScript-level click. This is useful when elements are overlapped, hidden by overlays, or when Selenium's native click fails due to element interactability issues."
+    },
+    {
+      q: "In xUnit, how do you share a single browser instance across all tests in a class?",
+      code: null,
+      options: [
+        "Mark the driver as static",
+        "Implement IClassFixture<T> and inject the fixture via constructor",
+        "Use [OneTimeSetUp] attribute",
+        "xUnit doesn't support shared instances"
+      ],
+      answer: 1,
+      explanation: "xUnit uses <strong>IClassFixture&lt;T&gt;</strong> for class-level shared context. You create a fixture class that initializes the driver, implement <code>IClassFixture&lt;MyFixture&gt;</code> on your test class, and inject it via the constructor. xUnit creates the fixture once and disposes it after all tests in the class run."
+    },
+    {
+      q: "What is the correct way to take a screenshot in Selenium C#?",
+      code: null,
+      options: [
+        "driver.CaptureScreen(\"screenshot.png\");",
+        "Screenshot ss = ((ITakesScreenshot)driver).GetScreenshot(); ss.SaveAsFile(\"screenshot.png\");",
+        "driver.SaveScreenshot(\"screenshot.png\");",
+        "WebDriver.Screenshot(driver, \"screenshot.png\");"
+      ],
+      answer: 1,
+      explanation: "Casting driver to <strong>ITakesScreenshot</strong> and calling <code>GetScreenshot()</code> is the Selenium API for capturing screenshots. The returned <code>Screenshot</code> object has a <code>SaveAsFile()</code> method. This is commonly used in teardown methods to capture screenshots on test failure."
+    }
+  ],
+  advanced: [
+    {
+      q: "How do you configure parallel test execution in NUnit using the assembly-level attribute?",
+      code: null,
+      options: [
+        "[assembly: Parallelizable(ParallelScope.All)]",
+        "[assembly: Parallel(true)]",
+        "[assembly: RunInParallel]",
+        "[assembly: TestParallel(ParallelScope.Fixtures)]"
+      ],
+      answer: 0,
+      explanation: "<strong>[assembly: Parallelizable(ParallelScope.All)]</strong> enables parallel execution at the assembly level. <code>ParallelScope.All</code> runs fixtures and tests in parallel. Use <code>ParallelScope.Fixtures</code> to parallelize only at the fixture level. Each parallel test needs its own WebDriver instance — never share driver across threads."
+    },
+    {
+      q: "What pattern should you use to manage WebDriver instances safely in parallel NUnit tests?",
+      code: null,
+      options: [
+        "Static IWebDriver field with lock() synchronization",
+        "ThreadLocal<IWebDriver> to store one driver instance per thread",
+        "A single shared driver with a mutex",
+        "Multiple drivers in a List<IWebDriver>"
+      ],
+      answer: 1,
+      explanation: "<strong>ThreadLocal&lt;IWebDriver&gt;</strong> is the correct approach for parallel tests. Each thread gets its own isolated driver instance, preventing race conditions. Initialize in <code>[SetUp]</code> with <code>_driver = new ThreadLocal&lt;IWebDriver&gt;(() => new ChromeDriver())</code> and dispose in <code>[TearDown]</code>."
+    },
+    {
+      q: "What is the purpose of Selenium Grid and how does it relate to RemoteWebDriver?",
+      code: null,
+      options: [
+        "Selenium Grid is a UI for managing test results; RemoteWebDriver connects to it",
+        "Selenium Grid allows distributing tests across multiple machines/browsers; RemoteWebDriver connects tests to Grid nodes",
+        "Selenium Grid is a C# library; RemoteWebDriver is the Java equivalent",
+        "They are the same thing"
+      ],
+      answer: 1,
+      explanation: "<strong>Selenium Grid</strong> is a server infrastructure that allows running tests on multiple machines with different browsers simultaneously. <strong>RemoteWebDriver</strong> is the C# class used to connect to a Grid hub: <code>new RemoteWebDriver(new Uri(\"http://hub:4444\"), options.ToCapabilities())</code>. This enables cross-browser and distributed testing."
+    },
+    {
+      q: "What does this advanced wait pattern accomplish?",
+      code: `wait.Until(driver => {
+  var elements = driver.FindElements(By.CssSelector(\".item\"));
+  return elements.Count > 5 ? elements : null;
+});`,
+      options: [
+        "It throws an exception because Until() doesn't support lambda returning collections",
+        "It waits until more than 5 .item elements exist, then returns them",
+        "It clicks the first 5 elements found",
+        "It filters elements by count"
+      ],
+      answer: 1,
+      explanation: "<strong>WebDriverWait.Until()</strong> accepts a <code>Func&lt;IWebDriver, T&gt;</code> where returning <code>null</code> or <code>false</code> continues polling. This pattern waits until the count condition is satisfied and returns the collection atomically. This avoids a race condition between checking count and retrieving elements."
+    },
+    {
+      q: "How do you implement the Fluent Wait pattern in C# Selenium for custom polling?",
+      code: null,
+      options: [
+        "WebDriverWait wait = new WebDriverWait(driver, timeout) { PollingInterval = interval };",
+        "new FluentWait(driver).WithTimeout(10).Polling(500);",
+        "DefaultWait<IWebDriver> wait = new DefaultWait<IWebDriver>(driver); wait.Timeout = ...; wait.PollingInterval = ...;",
+        "Both A and C are valid"
+      ],
+      answer: 3,
+      explanation: "Both approaches work: <code>WebDriverWait</code> inherits from <code>DefaultWait&lt;IWebDriver&gt;</code>, so setting <code>PollingInterval</code> is valid on it. You can also use <code>DefaultWait&lt;T&gt;</code> directly for more control. You can also call <code>.IgnoreExceptionTypes(typeof(NoSuchElementException))</code> to ignore specific exceptions during polling."
+    },
+    {
+      q: "In a CI/CD pipeline (e.g., GitHub Actions), how do you run Chrome in headless mode?",
+      code: null,
+      options: [
+        "Set driver.Headless = true",
+        "ChromeOptions options = new ChromeOptions(); options.AddArgument(\"--headless=new\"); new ChromeDriver(options);",
+        "Use FirefoxDriver instead of ChromeDriver",
+        "Headless mode is automatic in CI environments"
+      ],
+      answer: 1,
+      explanation: "<strong>options.AddArgument(\"--headless=new\")</strong> enables Chrome's modern headless mode. Also add <code>--no-sandbox</code> and <code>--disable-dev-shm-usage</code> for Docker/Linux CI environments. The <code>--headless=new</code> flag (vs old <code>--headless</code>) provides better rendering fidelity in Chrome 112+."
+    },
+    {
+      q: "What is a common strategy for implementing test data isolation across parallel Selenium tests?",
+      code: null,
+      options: [
+        "Use a single shared test database and clean it after all tests",
+        "Generate unique test data per test run using GUIDs/timestamps and clean up in TearDown",
+        "Disable parallel execution when using a database",
+        "Use the same credentials for all parallel tests"
+      ],
+      answer: 1,
+      explanation: "Generating <strong>unique test data per test</strong> (e.g., <code>$\"user_{Guid.NewGuid():N}\"</code>) prevents conflicts when tests run in parallel. Each test owns its data and cleans it up in <code>[TearDown]</code>. Alternatively, use test-specific database schemas or Docker containers per test run for full isolation."
+    },
+    {
+      q: "What does this code implement and what is its use case?",
+      code: `public class RetryAttribute : Attribute, ITestAction {
+  private int _retryCount;
+  public RetryAttribute(int count) => _retryCount = count;
+  public void BeforeTest(ITest test) {}
+  public void AfterTest(ITest test) {
+    // retry logic on failure
+  }
+}`,
+      options: [
+        "A custom NUnit attribute for retrying flaky tests automatically",
+        "A Selenium wait mechanism",
+        "A performance benchmark attribute",
+        "A test ordering attribute"
+      ],
+      answer: 0,
+      explanation: "This implements a <strong>custom NUnit retry attribute</strong> using <code>ITestAction</code>. NUnit 3 also has a built-in <code>[Retry(n)]</code> attribute that re-runs failed tests up to n times. Retry logic is useful for inherently flaky UI tests but should complement, not replace, fixing root causes of flakiness."
+    },
+    {
+      q: "How do you intercept network requests in Selenium C# for API mocking?",
+      code: null,
+      options: [
+        "driver.InterceptRequest(url, response);",
+        "Use Selenium 4's CDP (Chrome DevTools Protocol) via driver.ExecuteCdpCommand()",
+        "Network interception is not supported in Selenium",
+        "Use a JavaScript XMLHttpRequest override"
+      ],
+      answer: 1,
+      explanation: "Selenium 4 exposes <strong>Chrome DevTools Protocol (CDP)</strong> via <code>IDevTools</code> and <code>DevToolsSession</code>. You can intercept/mock network requests with the <code>Fetch</code> domain: <code>((IDevTools)driver).GetDevToolsSession()</code>. This enables request modification, response mocking, and network throttling in tests."
+    },
+    {
+      q: "What is the recommended approach for reporting test results with Extent Reports in a Selenium C# framework?",
+      code: null,
+      options: [
+        "Create a new ExtentReports instance per test",
+        "Use a singleton ExtentReports instance with thread-safe ExtentTest nodes per test, flushing in a global teardown",
+        "Only use Console.WriteLine for logging",
+        "Use ExtentReports only with TestNG, not NUnit"
+      ],
+      answer: 1,
+      explanation: "A <strong>singleton ExtentReports</strong> instance with <strong>ThreadLocal&lt;ExtentTest&gt;</strong> nodes per test is the correct pattern for parallel-safe reporting. Initialize once in <code>[OneTimeSetUp]</code>, create a new <code>ExtentTest</code> node in each <code>[SetUp]</code>, log steps/screenshots within tests, and call <code>extent.Flush()</code> in <code>[OneTimeTearDown]</code> to write the HTML report."
+    }
+  ]
+};
+
+let currentLevel = null;
+let currentIndex = 0;
+let score = 0;
+let answered = false;
+
+function selectLevel(level) {
+  document.querySelectorAll('.level-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.level-btn.${level}`).classList.add('active');
+  currentLevel = level;
+  currentIndex = 0;
+  score = 0;
+  answered = false;
+
+  document.getElementById('startScreen').style.display = 'none';
+  document.getElementById('scoreScreen').classList.remove('show');
+  document.getElementById('progressInfo').style.display = 'flex';
+  document.getElementById('progressWrap').style.display = 'block';
+  document.getElementById('nextBtn').classList.remove('show');
+
+  loadQuestion();
+}
+
+function loadQuestion() {
+  const qs = questions[currentLevel];
+  if (currentIndex >= qs.length) { showScore(); return; }
+
+  answered = false;
+  const q = qs[currentIndex];
+  const letters = ['A', 'B', 'C', 'D'];
+
+  document.getElementById('questionCount').textContent = `Question ${currentIndex + 1} of ${qs.length}`;
+  document.getElementById('scoreTrack').textContent = `Score: ${score}`;
+  document.getElementById('progressBar').style.width = `${(currentIndex / qs.length) * 100}%`;
+
+  let codeBlock = q.code ? `<div class="code-block">${escHtml(q.code)}</div>` : '';
+
+  let optHtml = q.options.map((o, i) => `
+    <button class="option-btn" onclick="selectAnswer(${i})" id="opt${i}">
+      <span class="opt-label">${letters[i]}</span>
+      <span>${o}</span>
+    </button>`).join('');
+
+  document.getElementById('questionCard').innerHTML = `
+    <div class="question-tag">${currentLevel.toUpperCase()} · Q${currentIndex + 1}</div>
+    <div class="question-text">${q.q}</div>
+    ${codeBlock}
+    <div class="options">${optHtml}</div>
+    <div class="explanation" id="explanation"></div>
+  `;
+  document.getElementById('questionCard').style.display = 'block';
+  document.getElementById('nextBtn').classList.remove('show');
+}
+
+function selectAnswer(idx) {
+  if (answered) return;
+  answered = true;
+
+  const q = questions[currentLevel][currentIndex];
+  const opts = document.querySelectorAll('.option-btn');
+
+  opts.forEach(b => b.disabled = true);
+
+  const isCorrect = idx === q.answer;
+  if (isCorrect) score++;
+
+  opts[idx].classList.add(isCorrect ? 'correct' : 'wrong');
+  if (!isCorrect) opts[q.answer].classList.add('correct');
+
+  const exp = document.getElementById('explanation');
+  exp.innerHTML = (isCorrect ? '✅ <strong>Correct!</strong> ' : '❌ <strong>Incorrect.</strong> ') + q.explanation;
+  exp.className = `explanation show ${isCorrect ? 'correct-exp' : 'wrong-exp'}`;
+
+  document.getElementById('scoreTrack').textContent = `Score: ${score}`;
+
+  const nextBtn = document.getElementById('nextBtn');
+  nextBtn.textContent = currentIndex < questions[currentLevel].length - 1 ? 'Next Question →' : 'See Results →';
+  nextBtn.classList.add('show');
+}
+
+function nextQuestion() {
+  currentIndex++;
+  loadQuestion();
+}
+
+function showScore() {
+  document.getElementById('questionCard').style.display = 'none';
+  document.getElementById('nextBtn').classList.remove('show');
+  document.getElementById('progressBar').style.width = '100%';
+
+  const total = questions[currentLevel].length;
+  const pct = Math.round((score / total) * 100);
+  let msg = pct >= 90 ? '🏆 Outstanding!' : pct >= 70 ? '👍 Good Job!' : pct >= 50 ? '📚 Keep Practicing' : '🔄 Review & Retry';
+  let sub = pct >= 70 ? 'Consider moving to the next difficulty level.' : 'Review the explanations and try again.';
+
+  document.getElementById('scoreScreen').innerHTML = `
+    <div class="score-number">${score}/${total}</div>
+    <div class="score-label">${pct}% correct · ${currentLevel.toUpperCase()} level</div>
+    <div class="score-msg">${msg}</div>
+    <div class="score-sub">${sub}</div>
+    <button class="restart-btn" onclick="selectLevel('${currentLevel}')">Retry This Test</button>
+    <button class="restart-btn" onclick="resetAll()" style="margin-left:0.5rem">Choose Another Level</button>
+  `;
+  document.getElementById('scoreScreen').classList.add('show');
+}
+
+function resetAll() {
+  document.querySelectorAll('.level-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('startScreen').style.display = 'block';
+  document.getElementById('scoreScreen').classList.remove('show');
+  document.getElementById('questionCard').style.display = 'none';
+  document.getElementById('progressInfo').style.display = 'none';
+  document.getElementById('progressWrap').style.display = 'none';
+  document.getElementById('nextBtn').classList.remove('show');
+  currentLevel = null;
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+</body>
+</html>
